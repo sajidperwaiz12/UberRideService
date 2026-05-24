@@ -37,7 +37,9 @@ public class Ride extends BaseModel {
     private Double fare;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private RideStatus status;
 
+    private Integer otp;
 }
 

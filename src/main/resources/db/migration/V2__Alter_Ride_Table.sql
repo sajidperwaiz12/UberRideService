@@ -1,0 +1,5 @@
+ALTER TABLE rides
+    ADD COLUMN otp INT NOT NULL;
+
+ALTER TABLE rides
+    MODIFY status VARCHAR(50) NOT NULL;
