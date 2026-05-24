@@ -10,6 +10,8 @@ import com.example.UberRideService.exceptions.BadRequestException;
 import com.example.UberRideService.mapper.RideMapper;
 import com.example.UberRideService.repositories.RideRepository;
 import com.example.UberRideService.services.RideService;
+import com.example.UberRideService.utils.DistanceUtil;
+import com.example.UberRideService.utils.FareUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -37,16 +39,24 @@ public class RideServiceImpl implements RideService {
 
         Ride ride = rideMapper.toRide(request);
         ride.setOtp(generateOtp());
-        ride.setFare(calculateDummyFare());
+
+        Double rideDistance = DistanceUtil.calculateDistance(
+                request.getPickupLatitude(),
+                request.getPickupLongitude(),
+                request.getDropLatitude(),
+                request.getDropLongitude()
+        );
+
+        double fare = FareUtil.calculateFare(rideDistance);
+
+        ride.setFare(fare);
         ride.setDriverId(assignedDriver.getDriverId());
         ride.setStatus(RideStatus.DRIVER_ASSIGNED);
 
+        userServiceClient.updateDriverAvailability(assignedDriver.getDriverId(), Boolean.FALSE);
+
         Ride savedRide = rideRepository.save(ride);
         return rideMapper.toRideResponseDto(savedRide);
-    }
-
-    private Double calculateDummyFare() {
-        return 250.0;
     }
 
     private Integer generateOtp() {
