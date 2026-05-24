@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: UberRideService
+  datasource:
+    url: jdbc:mysql://localhost:3306/uber_ride_db
+    username: root
+    password: Cap2an@21
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+server:
+  port: 7477
