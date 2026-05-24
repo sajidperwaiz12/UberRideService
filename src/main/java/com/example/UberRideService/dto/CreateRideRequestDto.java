@@ -19,9 +19,9 @@ public class CreateRideRequestDto {
     private Double pickupLongitude;
 
     @NotNull
-    private Double dropOffLatitude;
+    private Double dropLatitude;
 
     @NotNull
-    private Double dropOffLongitude;
+    private Double dropLongitude;
 }
 

@@ -14,8 +14,8 @@ public class RideResponseDto {
     private Long driverId;
     private Double pickupLatitude;
     private Double pickupLongitude;
-    private Double dropOffLatitude;
-    private Double dropOffLongitude;
+    private Double dropLatitude;
+    private Double dropLongitude;
     private RideStatus status;
     private Double fare;
     private Integer otp;
