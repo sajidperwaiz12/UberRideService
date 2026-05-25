@@ -7,6 +7,7 @@ import com.example.UberRideService.dto.RideResponseDto;
 import com.example.UberRideService.entities.Ride;
 import com.example.UberRideService.enums.RideStatus;
 import com.example.UberRideService.exceptions.BadRequestException;
+import com.example.UberRideService.exceptions.ResourceNotFoundException;
 import com.example.UberRideService.mapper.RideMapper;
 import com.example.UberRideService.repositories.RideRepository;
 import com.example.UberRideService.services.RideService;
@@ -57,6 +58,64 @@ public class RideServiceImpl implements RideService {
 
         Ride savedRide = rideRepository.save(ride);
         return rideMapper.toRideResponseDto(savedRide);
+    }
+
+    @Override
+    public RideResponseDto acceptRide(Long rideId) {
+        Ride ride = getRide(rideId);
+        ride.setStatus(RideStatus.ACCEPTED);
+        return rideMapper.toRideResponseDto(rideRepository.save(ride));
+    }
+
+    @Override
+    public RideResponseDto rejectRide(Long rideId) {
+        Ride ride = getRide(rideId);
+        userServiceClient.updateDriverAvailability(ride.getDriverId(), Boolean.TRUE);
+        ride.setDriverId(null);
+        ride.setStatus(RideStatus.REQUESTED);
+        return rideMapper.toRideResponseDto(rideRepository.save(ride));
+    }
+
+    @Override
+    public RideResponseDto verifyOtp(Long rideId, Integer otp) {
+        Ride ride = getRide(rideId);
+
+        if (!ride.getOtp().equals(otp)) {
+            throw new BadRequestException("Invalid OTP");
+        }
+
+        ride.setStatus(RideStatus.OTP_VERIFIED);
+        return rideMapper.toRideResponseDto(rideRepository.save(ride));
+    }
+
+    @Override
+    public RideResponseDto startRide(Long rideId) {
+        Ride ride = getRide(rideId);
+        ride.setStatus(RideStatus.IN_PROGRESS);
+        return rideMapper.toRideResponseDto(rideRepository.save(ride));
+    }
+
+    @Override
+    public RideResponseDto completeRide(Long rideId) {
+        Ride ride = getRide(rideId);
+        ride.setStatus(RideStatus.COMPLETED);
+        userServiceClient.updateDriverAvailability(ride.getDriverId(), Boolean.TRUE);
+        return rideMapper.toRideResponseDto(rideRepository.save(ride));
+    }
+
+    @Override
+    public RideResponseDto cancelRide(Long rideId) {
+        Ride ride = getRide(rideId);
+        ride.setStatus(RideStatus.CANCELLED);
+
+        if (ride.getDriverId() != null) {
+            userServiceClient.updateDriverAvailability(ride.getDriverId(), Boolean.TRUE);
+        }
+        return rideMapper.toRideResponseDto(rideRepository.save(ride));
+    }
+
+    private Ride getRide(Long rideId) {
+        return rideRepository.findById(rideId).orElseThrow(() -> new ResourceNotFoundException("Ride not found"));
     }
 
     private Integer generateOtp() {

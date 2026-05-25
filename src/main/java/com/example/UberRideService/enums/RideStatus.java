@@ -7,6 +7,6 @@ public enum RideStatus {
     ARRIVED,
     IN_PROGRESS,
     COMPLETED,
-    CANCELLED
+    OTP_VERIFIED, CANCELLED
 }
 
