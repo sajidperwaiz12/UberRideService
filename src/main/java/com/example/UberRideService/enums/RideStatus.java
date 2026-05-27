@@ -3,10 +3,10 @@ package com.example.UberRideService.enums;
 public enum RideStatus {
     REQUESTED,
     DRIVER_ASSIGNED,
-    ACCEPTED,
-    ARRIVED,
+    DRIVER_ARRIVING,
+    OTP_VERIFIED,
     IN_PROGRESS,
     COMPLETED,
-    OTP_VERIFIED, CANCELLED
+    CANCELLED
 }
 

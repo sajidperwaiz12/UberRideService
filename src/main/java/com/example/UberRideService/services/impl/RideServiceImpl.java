@@ -33,14 +33,6 @@ public class RideServiceImpl implements RideService {
     public RideResponseDto createRide(CreateRideRequestDto request) {
         validateCoordinates(request);
 
-        List<DriverLocationResponseDto> nearbyDrivers = locationServiceClient.getNearbyDrivers(request.getPickupLatitude(), request.getPickupLongitude());
-
-        if (nearbyDrivers.isEmpty()) {
-            throw new BadRequestException("No nearby drivers available");
-        }
-
-        DriverLocationResponseDto assignedDriver = nearbyDrivers.get(0);
-
         Ride ride = rideMapper.toRide(request);
         ride.setOtp(generateOtp());
 
@@ -54,19 +46,41 @@ public class RideServiceImpl implements RideService {
         double fare = FareUtil.calculateFare(rideDistance);
 
         ride.setFare(fare);
-        ride.setDriverId(Long.parseLong(assignedDriver.getDriverId()));
-        ride.setStatus(RideStatus.DRIVER_ASSIGNED);
-
-        userServiceClient.updateDriverAvailability(Long.parseLong(assignedDriver.getDriverId()), Boolean.FALSE);
+        ride.setStatus(RideStatus.REQUESTED);
+        assignDriver(ride);
 
         Ride savedRide = rideRepository.save(ride);
         return rideMapper.toRideResponseDto(savedRide);
     }
 
+    private void assignDriver(Ride ride) {
+        List<DriverLocationResponseDto> nearbyDrivers = locationServiceClient.getNearbyDrivers(ride.getPickupLatitude(), ride.getPickupLongitude());
+
+        if (nearbyDrivers.isEmpty()) {
+            throw new BadRequestException("No nearby drivers available");
+        }
+
+        for (DriverLocationResponseDto driver : nearbyDrivers) {
+            try {
+                userServiceClient.updateDriverAvailability(Long.parseLong(driver.getDriverId()), Boolean.FALSE);
+                ride.setDriverId(Long.parseLong(driver.getDriverId()));
+                ride.setStatus(RideStatus.DRIVER_ASSIGNED);
+                return;
+            } catch (Exception e) {
+
+            }
+        }
+
+        throw new ResourceNotFoundException("Driver not found");
+    }
+
     @Override
     public RideResponseDto acceptRide(Long rideId) {
         Ride ride = getRide(rideId);
-        ride.setStatus(RideStatus.ACCEPTED);
+        if (ride.getStatus() != RideStatus.DRIVER_ASSIGNED) {
+            throw new BadRequestException("Ride cannot be accepted");
+        }
+        ride.setStatus(RideStatus.DRIVER_ARRIVING   );
         return rideMapper.toRideResponseDto(rideRepository.save(ride));
     }
 
@@ -76,6 +90,7 @@ public class RideServiceImpl implements RideService {
         userServiceClient.updateDriverAvailability(ride.getDriverId(), Boolean.TRUE);
         ride.setDriverId(null);
         ride.setStatus(RideStatus.REQUESTED);
+        assignDriver(ride);
         return rideMapper.toRideResponseDto(rideRepository.save(ride));
     }
 
@@ -87,6 +102,10 @@ public class RideServiceImpl implements RideService {
             throw new BadRequestException("Invalid OTP");
         }
 
+        if (ride.getStatus() != RideStatus.DRIVER_ARRIVING) {
+            throw new BadRequestException("Driver has not arrived yet");
+        }
+
         ride.setStatus(RideStatus.OTP_VERIFIED);
         return rideMapper.toRideResponseDto(rideRepository.save(ride));
     }
@@ -94,6 +113,9 @@ public class RideServiceImpl implements RideService {
     @Override
     public RideResponseDto startRide(Long rideId) {
         Ride ride = getRide(rideId);
+        if (ride.getStatus() != RideStatus.OTP_VERIFIED) {
+            throw new BadRequestException("OTP not verified");
+        }
         ride.setStatus(RideStatus.IN_PROGRESS);
         return rideMapper.toRideResponseDto(rideRepository.save(ride));
     }
@@ -101,6 +123,9 @@ public class RideServiceImpl implements RideService {
     @Override
     public RideResponseDto completeRide(Long rideId) {
         Ride ride = getRide(rideId);
+        if (ride.getStatus() != RideStatus.IN_PROGRESS) {
+            throw new BadRequestException("Ride is not in progress");
+        }
         ride.setStatus(RideStatus.COMPLETED);
         userServiceClient.updateDriverAvailability(ride.getDriverId(), Boolean.TRUE);
         return rideMapper.toRideResponseDto(rideRepository.save(ride));
@@ -109,6 +134,9 @@ public class RideServiceImpl implements RideService {
     @Override
     public RideResponseDto cancelRide(Long rideId) {
         Ride ride = getRide(rideId);
+        if (ride.getStatus() == RideStatus.COMPLETED) {
+            throw new BadRequestException("Completed ride cannot be cancelled");
+        }
         ride.setStatus(RideStatus.CANCELLED);
 
         if (ride.getDriverId() != null) {
